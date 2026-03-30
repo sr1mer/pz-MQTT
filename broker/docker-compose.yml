@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  mqtt-broker:
+    image: eclipse-mosquitto:latest
+    container_name: mqtt-broker-pz-mqtt
+    hostname: mqtt-broker
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
+    ports:
+      - "1883:1883"    # MQTT (TCP)
+      - "8883:8883"    # MQTT (TLS)
+      - "9090:8080"    # MQTT (WebSocket)
+      - "9091:8081"    # MQTT (WebSocket Secure)
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mqtt_data:/mosquitto/data
+      - mqtt_logs:/mosquitto/log
+    networks:
+      - mqtt-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  mqtt_data:
+    driver: local
+  mqtt_logs:
+    driver: local
+
+networks:
+  mqtt-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+

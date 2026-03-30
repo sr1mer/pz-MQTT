@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQTT Web Client - pz-MQTT</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .content {
+            padding: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .section {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        
+        .section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            color: #555;
+            font-weight: 500;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.secondary {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        
+        button.secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .status.disconnected {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .status.connecting {
+            background: #fff3e0;
+            color: #e65100;
+        }
+        
+        .status.connected {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .messages {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        
+        .message {
+            padding: 8px;
+            margin-bottom: 8px;
+            border-left: 3px solid #667eea;
+            background: #f5f5f5;
+            border-radius: 3px;
+        }
+        
+        .message.publish {
+            border-left-color: #4caf50;
+        }
+        
+        .message.subscribe {
+            border-left-color: #2196f3;
+        }
+        
+        .timestamp {
+            color: #999;
+            font-size: 11px;
+            margin-bottom: 3px;
+        }
+        
+        .topic {
+            color: #667eea;
+            font-weight: bold;
+        }
+        
+        .payload {
+            color: #333;
+            word-break: break-all;
+            margin-top: 5px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .button-group button {
+            flex: 1;
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌐 MQTT Web Client</h1>
+            <p>pz-MQTT Project - Легке тестування MQTT через WebSocket</p>
+        </div>
+        
+        <div class="content">
+            <!-- Connection Settings -->
+            <div class="section">
+                <h2>⚙️ Підключення</h2>
+                
+                <div id="status" class="status disconnected">
+                    ⚫ Відключено
+                </div>
+                
+                <div class="form-group">
+                    <label for="brokerUrl">URL брокера:</label>
+                    <input type="text" id="brokerUrl" value="ws://localhost:9090" placeholder="ws://localhost:9090">
+                </div>
+                
+                <div class="form-group">
+                    <label for="clientId">Client ID:</label>
+                    <input type="text" id="clientId" value="web-client-pz" placeholder="web-client-pz">
+                </div>
+                
+                <div class="button-group">
+                    <button onclick="connect()">Підключитися</button>
+                    <button class="secondary" onclick="disconnect()">Розпідключитися</button>
+                </div>
+            </div>
+            
+            <!-- Publish Messages -->
+            <div class="section">
+                <h2>📤 Опублікувати повідомлення</h2>
+                
+                <div class="form-group">
+                    <label for="pubTopic">Топік:</label>
+                    <input type="text" id="pubTopic" placeholder="test/topic" value="test/topic">
+                </div>
+                
+                <div class="form-group">
+                    <label for="pubMessage">Повідомлення:</label>
+                    <textarea id="pubMessage" placeholder="Hello MQTT!">Hello MQTT!</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="pubQoS">QoS:</label>
+                    <select id="pubQoS">
+                        <option value="0">0 - At most once</option>
+                        <option value="1">1 - At least once</option>
+                        <option value="2">2 - Exactly once</option>
+                    </select>
+                </div>
+                
+                <button onclick="publish()" style="width: 100%;">Надіслати повідомлення</button>
+            </div>
+            
+            <!-- Subscribe to Topics -->
+            <div class="section">
+                <h2>📥 Підписатися на топік</h2>
+                
+                <div class="form-group">
+                    <label for="subTopic">Топік для підписки:</label>
+                    <input type="text" id="subTopic" placeholder="test/topic" value="test/#">
+                </div>
+                
+                <div class="form-group">
+                    <label for="subQoS">QoS:</label>
+                    <select id="subQoS">
+                        <option value="0">0 - At most once</option>
+                        <option value="1">1 - At least once</option>
+                        <option value="2">2 - Exactly once</option>
+                    </select>
+                </div>
+                
+                <div class="button-group">
+                    <button onclick="subscribe()" style="flex: 2;">Підписатися</button>
+                    <button class="secondary" onclick="unsubscribe()" style="flex: 1;">Відписатися</button>
+                </div>
+            </div>
+            
+            <!-- Messages Log -->
+            <div class="section full-width">
+                <h2>📋 Журнал повідомлень</h2>
+                <div id="messages" class="messages"></div>
+                <button class="secondary" onclick="clearMessages()" style="width: 100%; margin-top: 10px;">Очистити журнал</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let client = null;
+        const maxMessages = 100;
+        
+        function updateStatus(status, text) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = 'status ' + status;
+            statusEl.innerText = text;
+        }
+        
+        function addMessage(type, topic, payload) {
+            const messagesEl = document.getElementById('messages');
+            const message = document.createElement('div');
+            message.className = 'message ' + type;
+            
+            const now = new Date();
+            const time = now.toLocaleTimeString('uk-UA');
+            
+            message.innerHTML = `
+                <div class="timestamp">${time}</div>
+                <div><span class="topic">${topic}</span></div>
+                <div class="payload">${payload}</div>
+            `;
+            
+            messagesEl.insertBefore(message, messagesEl.firstChild);
+            
+            // Keep only last N messages
+            while (messagesEl.children.length > maxMessages) {
+                messagesEl.removeChild(messagesEl.lastChild);
+            }
+        }
+        
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+        }
+        
+        function connect() {
+            const brokerUrl = document.getElementById('brokerUrl').value;
+            const clientId = document.getElementById('clientId').value;
+            
+            if (!brokerUrl) {
+                alert('Будь ласка, введіть URL брокера');
+                return;
+            }
+            
+            try {
+                updateStatus('connecting', '🔄 Підключення...');
+                
+                // Use MQTT.js library if available, otherwise show info
+                if (typeof MQTT !== 'undefined') {
+                    client = MQTT.connect(brokerUrl, {
+                        clientId: clientId,
+                        clean: true,
+                        reconnectPeriod: 1000,
+                    });
+                    
+                    client.on('connect', function () {
+                        updateStatus('connected', '🟢 Підключено');
+                        addMessage('subscribe', 'System', 'Успішно підключено до брокера');
+                    });
+                    
+                    client.on('message', function (topic, message) {
+                        addMessage('publish', topic, message.toString());
+                    });
+                    
+                    client.on('error', function (err) {
+                        updateStatus('disconnected', '⚫ Помилка підключення');
+                        addMessage('subscribe', 'System', 'Помилка: ' + err.message);
+                    });
+                } else {
+                    // MQTT.js not loaded - show info
+                    addMessage('subscribe', 'System', 'Примітка: Для роботи підключення потрібна бібліотека MQTT.js');
+                    addMessage('subscribe', 'System', 'Використовуйте Postman для тестування або підключіть MQTT.js: <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>');
+                    updateStatus('disconnected', '⚫ Бібліотека не завантажена');
+                }
+            } catch (error) {
+                updateStatus('disconnected', '⚫ Помилка');
+                addMessage('subscribe', 'System', 'Помилка: ' + error.message);
+            }
+        }
+        
+        function disconnect() {
+            if (client) {
+                client.end();
+                client = null;
+            }
+            updateStatus('disconnected', '⚫ Відключено');
+            addMessage('subscribe', 'System', 'Відключено від брокера');
+        }
+        
+        function publish() {
+            if (!client || !client.connected) {
+                alert('Спершу підключіться до брокера');
+                return;
+            }
+            
+            const topic = document.getElementById('pubTopic').value;
+            const message = document.getElementById('pubMessage').value;
+            const qos = parseInt(document.getElementById('pubQoS').value);
+            
+            if (!topic || !message) {
+                alert('Будь ласка, заповніть топік та повідомлення');
+                return;
+            }
+            
+            client.publish(topic, message, { qos: qos }, function(err) {
+                if (!err) {
+                    addMessage('publish', topic, message);
+                }
+            });
+        }
+        
+        function subscribe() {
+            if (!client || !client.connected) {
+                alert('Спершу підключіться до брокера');
+                return;
+            }
+            
+            const topic = document.getElementById('subTopic').value;
+            const qos = parseInt(document.getElementById('subQoS').value);
+            
+            if (!topic) {
+                alert('Будь ласка, введіть топік');
+                return;
+            }
+            
+            client.subscribe(topic, { qos: qos }, function(err) {
+                if (!err) {
+                    addMessage('subscribe', 'System', 'Підписано на: ' + topic);
+                }
+            });
+        }
+        
+        function unsubscribe() {
+            if (!client || !client.connected) {
+                alert('Спершу підключіться до брокера');
+                return;
+            }
+            
+            const topic = document.getElementById('subTopic').value;
+            
+            if (!topic) {
+                alert('Будь ласка, введіть топік');
+                return;
+            }
+            
+            client.unsubscribe(topic, function(err) {
+                if (!err) {
+                    addMessage('subscribe', 'System', 'Відписано від: ' + topic);
+                }
+            });
+        }
+        
+        // Initialize with system message
+        window.addEventListener('load', function() {
+            addMessage('subscribe', 'System', '✓ Веб-клієнт завантажений. Натисніть "Підключитися" для початку роботи.');
+        });
+    </script>
+</body>
+</html>

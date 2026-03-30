@@ -1,0 +1,303 @@
+{
+  "info": {
+    "_postman_id": "mqtt-broker-tests-pz",
+    "name": "MQTT Broker Tests - pz-MQTT",
+    "description": "Тестування MQTT брокера через Postman",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "MQTT Connection",
+      "item": [
+        {
+          "name": "Connect to MQTT Broker",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Connection successful', function() {",
+                  "    pm.response.code === 200 || pm.response.code === 101;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "mqtt://127.0.0.1:1883",
+              "protocol": "mqtt",
+              "host": [
+                "127.0.0.1"
+              ],
+              "port": "1883"
+            },
+            "description": "Підключення до MQTT брокера на localhost:1883"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "MQTT Publish",
+      "item": [
+        {
+          "name": "Publish to test/topic",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Message published successfully', function() {",
+                  "    pm.response.code === 200;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"topic\\\": \\\"test/topic\\\",\\n  \\\"message\\\": \\\"Hello MQTT from Postman!\\\"\\n}"
+            },
+            "url": {
+              "raw": "mqtt://127.0.0.1:1883/publish",
+              "protocol": "mqtt",
+              "host": [
+                "127.0.0.1"
+              ],
+              "port": "1883",
+              "path": [
+                "publish"
+              ]
+            },
+            "description": "Публікація повідомлення до топіка test/topic"
+          },
+          "response": []
+        },
+        {
+          "name": "Publish to sensor/temperature",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"topic\\\": \\\"sensor/temperature\\\",\\n  \\\"message\\\": \\\"25.5\\\"\\n}"
+            },
+            "url": {
+              "raw": "mqtt://127.0.0.1:1883/publish",
+              "protocol": "mqtt",
+              "host": [
+                "127.0.0.1"
+              ],
+              "port": "1883",
+              "path": [
+                "publish"
+              ]
+            },
+            "description": "Публікація температурних даних"
+          },
+          "response": []
+        },
+        {
+          "name": "Publish to sensor/humidity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"topic\\\": \\\"sensor/humidity\\\",\\n  \\\"message\\\": \\\"65%\\\"\\n}"
+            },
+            "url": {
+              "raw": "mqtt://127.0.0.1:1883/publish",
+              "protocol": "mqtt",
+              "host": [
+                "127.0.0.1"
+              ],
+              "port": "1883",
+              "path": [
+                "publish"
+              ]
+            },
+            "description": "Публікація даних вологості"
+          },
+          "response": []
+        },
+        {
+          "name": "Publish to device/status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"topic\\\": \\\"device/status\\\",\\n  \\\"message\\\": \\\"online\\\"\\n}"
+            },
+            "url": {
+              "raw": "mqtt://127.0.0.1:1883/publish",
+              "protocol": "mqtt",
+              "host": [
+                "127.0.0.1"
+              ],
+              "port": "1883",
+              "path": [
+                "publish"
+              ]
+            },
+            "description": "Публікація статусу пристрою"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "MQTT Subscribe",
+      "item": [
+        {
+          "name": "Subscribe to test/topic",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Subscription successful', function() {",
+                  "    pm.response.code === 200;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "mqtt://127.0.0.1:1883/subscribe?topics=test/topic",
+              "protocol": "mqtt",
+              "host": [
+                "127.0.0.1"
+              ],
+              "port": "1883",
+              "path": [
+                "subscribe"
+              ],
+              "query": [
+                {
+                  "key": "topics",
+                  "value": "test/topic"
+                }
+              ]
+            },
+            "description": "Підписка на топік test/topic"
+          },
+          "response": []
+        },
+        {
+          "name": "Subscribe to sensor/+",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "mqtt://127.0.0.1:1883/subscribe?topics=sensor/+",
+              "protocol": "mqtt",
+              "host": [
+                "127.0.0.1"
+              ],
+              "port": "1883",
+              "path": [
+                "subscribe"
+              ],
+              "query": [
+                {
+                  "key": "topics",
+                  "value": "sensor/+"
+                }
+              ]
+            },
+            "description": "Підписка на всі топіки під sensor/* (температура, вологість)"
+          },
+          "response": []
+        },
+        {
+          "name": "Subscribe to all topics (#)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "mqtt://127.0.0.1:1883/subscribe?topics=%23",
+              "protocol": "mqtt",
+              "host": [
+                "127.0.0.1"
+              ],
+              "port": "1883",
+              "path": [
+                "subscribe"
+              ],
+              "query": [
+                {
+                  "key": "topics",
+                  "value": "#"
+                }
+              ]
+            },
+            "description": "Підписка на ВСІ топіки"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "MQTT WebSocket (для Postman)",
+      "item": [
+        {
+          "name": "Connect via WebSocket",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Connection",
+                "value": "Upgrade"
+              },
+              {
+                "key": "Upgrade",
+                "value": "websocket"
+              }
+            ],
+            "url": {
+              "raw": "ws://127.0.0.1:9090",
+              "protocol": "ws",
+              "host": [
+                "127.0.0.1"
+              ],
+              "port": "9090"
+            },
+            "description": "Підключення через WebSocket на порт 9090"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

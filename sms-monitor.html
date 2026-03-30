@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMS Monitor - Console</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
+</head>
+<body>
+    <h1>📱 SMS Monitor - Console</h1>
+    <p>Відправляйте СМС через Postman в топік: <code>sms/send</code></p>
+    <p>Усе буде в консолі браузера (F12)</p>
+    
+    <div id="status" style="padding: 20px; margin: 20px; border: 2px solid #ddd; border-radius: 5px;">
+        <p id="connectionStatus">⚫ Відключено</p>
+        <p id="receivedCount">📨 Отримано: 0</p>
+    </div>
+
+    <script>
+        let messageCount = 0;
+
+        console.log("═══════════════════════════════════════════════════════════");
+        console.log("📱 SMS Monitor запущений");
+        console.log("🔗 Підключення до MQTT брокера...");
+        console.log("═══════════════════════════════════════════════════════════");
+
+        // Підключення до MQTT брокера
+        const client = mqtt.connect("ws://localhost:9090", {
+            clientId: "sms-monitor-" + Math.random().toString(16).substr(2, 9),
+            reconnectPeriod: 1000
+        });
+
+        client.on("connect", function() {
+            console.log("%c✅ ПІДКЛЮЧЕНО до MQTT брокера", "color: green; font-weight: bold; font-size: 14px;");
+            console.log("📍 Адреса: ws://localhost:9090");
+            console.log("🔊 Слухаємо топік: sms/send");
+            console.log("💡 Готово до прийманню СМС з Postman'а");
+            console.log("═══════════════════════════════════════════════════════════");
+            
+            document.getElementById("connectionStatus").innerHTML = "🟢 Підключено";
+            document.getElementById("connectionStatus").style.color = "green";
+
+            // Підписуємося на топік СМС
+            client.subscribe("sms/send", { qos: 1 }, function(err) {
+                if (err) {
+                    console.error("❌ Помилка підписки:", err);
+                } else {
+                    console.log("%c📡 Успішно підписано на топік: sms/send", "color: blue; font-weight: bold;");
+                }
+            });
+        });
+
+        client.on("message", function(topic, message) {
+            messageCount++;
+
+            try {
+                const sms = JSON.parse(message.toString());
+                
+                console.group(`%c📨 SMS #${messageCount}`, "color: #667eea; font-weight: bold; font-size: 14px;");
+                console.log("%c📞 Номер телефону:", "color: #333; font-weight: bold;", sms.phone || sms.phone_number || "Unknown");
+                console.log("%c💬 Текст повідомлення:", "color: #333; font-weight: bold;", sms.message || sms.text || sms.content || "");
+                console.log("%c⏰ Час отримання:", "color: #666;", new Date().toLocaleString('uk-UA'));
+                console.log("%c📋 Топік:", "color: #999;", topic);
+                console.log("%c🔍 Повний об'єкт:", "background: #f0f0f0; padding: 5px;", sms);
+                console.groupEnd();
+
+                // Звукове сповіщення (опціонально)
+                console.log("%c🔔 Крок 1: Перейти у Postman", "color: green; font-size: 12px;");
+                console.log("%c🔔 Крок 2: Виберіть Collection → MQTT → Publish", "color: green; font-size: 12px;");
+                console.log("%c🔔 Крок 3: Topic: sms/send", "color: green; font-size: 12px;");
+                console.log("%c🔔 Крок 4: Body: {\"phone\": \"+380...\", \"message\": \"текст\"}", "color: green; font-size: 12px;");
+                console.log("");
+
+            } catch (e) {
+                console.group(`%c📨 SMS #${messageCount} (raw)`, "color: #ff6b6b; font-weight: bold; font-size: 14px;");
+                console.log("%c💬 Текст:", "color: #333; font-weight: bold;", message.toString());
+                console.log("%c⏰ Час:", "color: #666;", new Date().toLocaleString('uk-UA'));
+                console.log("%c⚠️ Примітка: Текст не є JSON", "color: orange;");
+                console.groupEnd();
+            }
+
+            // Оновлюємо лічильник на сторінці
+            document.getElementById("receivedCount").textContent = `📨 Отримано: ${messageCount}`;
+        });
+
+        client.on("error", function(err) {
+            console.error("%c❌ ПОМИЛКА підключення до MQTT:", "color: red; font-weight: bold;", err.message);
+            document.getElementById("connectionStatus").innerHTML = "❌ Помилка: " + err.message;
+            document.getElementById("connectionStatus").style.color = "red";
+        });
+
+        client.on("disconnect", function() {
+            console.warn("%c⚠️ ВІДКЛЮЧЕНО від MQTT брокера", "color: orange; font-weight: bold;");
+            document.getElementById("connectionStatus").innerHTML = "⚫ Відключено";
+            document.getElementById("connectionStatus").style.color = "orange";
+        });
+
+        // Показуємо инструкцию при завантаженні
+        window.addEventListener('load', function() {
+            console.log("");
+            console.log("%c📚 ІНСТРУКЦІЯ ДЛЯ POSTMAN:", "background: #667eea; color: white; padding: 10px; font-weight: bold; font-size: 14px;");
+            console.log("");
+            console.log("%c1️⃣ Імпортуйте Postman_MQTT_Collection.json", "color: #333; font-weight: bold;");
+            console.log("%c2️⃣ Додайте новий MQTT Request", "color: #333; font-weight: bold;");
+            console.log("%c3️⃣ Налаштування:", "color: #333; font-weight: bold;");
+            console.log("   Protocol: MQTT");
+            console.log("   Broker: localhost");
+            console.log("   Port: 1883");
+            console.log("   Topic: sms/send");
+            console.log("");
+            console.log("%c4️⃣ Payload (JSON):", "color: #333; font-weight: bold;");
+            console.log(`{
+  "phone": "+380501234567",
+  "message": "Привіт! Це тестове СМС"
+}`);
+            console.log("");
+            console.log("%c5️⃣ Натисніть Send — СМС з'явиться тут! ✉️", "color: #2ecc71; font-weight: bold; font-size: 14px;");
+            console.log("");
+            console.log("═══════════════════════════════════════════════════════════");
+        });
+    </script>
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        p {
+            color: #666;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        
+        code {
+            background: #e8e8e8;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        #status {
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        #connectionStatus {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 0;
+        }
+        
+        #receivedCount {
+            font-size: 16px;
+            margin: 10px 0 0 0;
+        }
+    </style>
+</body>
+</html>

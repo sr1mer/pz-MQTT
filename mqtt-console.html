@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQTT Broker Console</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #00ff00;
+            overflow: hidden;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: #2d2d2d;
+            padding: 15px;
+            border-bottom: 2px solid #00ff00;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .status {
+            display: inline-block;
+            margin-left: 20px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .status.connected {
+            background: #00ff00;
+            color: #000;
+        }
+        
+        .status.disconnected {
+            background: #ff0000;
+            color: #fff;
+        }
+        
+        .content {
+            display: flex;
+            flex: 1;
+            gap: 10px;
+            padding: 10px;
+        }
+        
+        .console {
+            flex: 1;
+            background: #1a1a1a;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .console-line {
+            margin: 2px 0;
+        }
+        
+        .log-info {
+            color: #00ff00;
+        }
+        
+        .log-success {
+            color: #00ff00;
+            font-weight: bold;
+        }
+        
+        .log-error {
+            color: #ff4444;
+        }
+        
+        .log-warning {
+            color: #ffaa00;
+        }
+        
+        .log-message {
+            color: #00aaff;
+        }
+        
+        .control-panel {
+            width: 300px;
+            background: #2d2d2d;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .control-section {
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 10px;
+        }
+        
+        .control-section:last-child {
+            border-bottom: none;
+        }
+        
+        .control-title {
+            color: #ffff00;
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        input, button, select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            background: #1a1a1a;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        
+        button {
+            background: #00ff00;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #00cc00;
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        button.danger {
+            background: #ff4444;
+            color: #fff;
+        }
+        
+        button.danger:hover {
+            background: #cc0000;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+        
+        .clear-btn {
+            font-size: 11px;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            🌐 MQTT Broker Web Console (localhost:9090)
+            <span class="status disconnected" id="status">Отключено</span>
+        </div>
+        
+        <div class="content">
+            <div class="console" id="console"></div>
+            
+            <div class="control-panel">
+                <div class="control-section">
+                    <div class="control-title">⚙️ ПІДКЛЮЧЕННЯ</div>
+                    <input type="text" id="url" value="ws://127.0.0.1:9090" placeholder="WebSocket URL">
+                    <button id="connectBtn" onclick="toggleConnection()">🔗 Підключити</button>
+                </div>
+                
+                <div class="control-section">
+                    <div class="control-title">📤 ПУБЛІКАЦІЯ</div>
+                    <input type="text" id="pubTopic" value="test/topic" placeholder="Топік">
+                    <textarea id="pubMessage" placeholder="Повідомлення">Hello MQTT!</textarea>
+                    <button onclick="publish()">📤 Надіслати</button>
+                </div>
+                
+                <div class="control-section">
+                    <div class="control-title">📥 ПІДПИСКА</div>
+                    <input type="text" id="subTopic" value="test/topic" placeholder="Топік">
+                    <button onclick="subscribe()">📥 Підписати</button>
+                    <button onclick="unsubscribe()" class="danger">🔕 Відписати</button>
+                </div>
+                
+                <div class="control-section">
+                    <button onclick="clearConsole()" class="clear-btn">🗑️ Очистити</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/mqtt@5.15.0/dist/mqtt.min.js"></script>
+    <script>
+        let client = null;
+        let isConnected = false;
+
+        function log(message, type = 'info') {
+            const console = document.getElementById('console');
+            const line = document.createElement('div');
+            line.className = `console-line log-${type}`;
+            
+            const time = new Date().toLocaleTimeString();
+            line.textContent = `[${time}] ${message}`;
+            
+            console.appendChild(line);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        function updateStatus() {
+            const statusEl = document.getElementById('status');
+            const connectBtn = document.getElementById('connectBtn');
+            
+            if (isConnected) {
+                statusEl.textContent = '✓ Підключено';
+                statusEl.className = 'status connected';
+                connectBtn.textContent = '🔌 Відключити';
+            } else {
+                statusEl.textContent = 'Отключено';
+                statusEl.className = 'status disconnected';
+                connectBtn.textContent = '🔗 Підключити';
+            }
+        }
+
+        function toggleConnection() {
+            if (isConnected) {
+                disconnect();
+            } else {
+                connect();
+            }
+        }
+
+        function connect() {
+            const url = document.getElementById('url').value;
+            
+            log(`🔗 Підключення до ${url}...`, 'info');
+            
+            try {
+                client = mqtt.connect(url, {
+                    clean: true,
+                    connectTimeout: 4000,
+                    reconnectPeriod: 1000,
+                });
+            } catch (err) {
+                log(`❌ Помилка підключення: ${err.message}`, 'error');
+                return;
+            }
+
+            client.on('connect', () => {
+                isConnected = true;
+                updateStatus();
+                log('✅ Успішно підключено!', 'success');
+            });
+
+            client.on('message', (topic, message) => {
+                log(`📨 ${topic}: ${message.toString()}`, 'message');
+            });
+
+            client.on('error', (err) => {
+                log(`❌ Помилка: ${err.message || err}`, 'error');
+            });
+
+            client.on('disconnect', () => {
+                isConnected = false;
+                updateStatus();
+                log('❌ Відключено від брокера', 'warning');
+            });
+
+            client.on('offline', () => {
+                log('⚠️ Брокер недоступний', 'warning');
+            });
+        }
+
+        function disconnect() {
+            if (client) {
+                client.end();
+                isConnected = false;
+                updateStatus();
+                log('Відключено', 'info');
+            }
+        }
+
+        function publish() {
+            if (!isConnected) {
+                log('❌ Не підключено!', 'error');
+                return;
+            }
+
+            const topic = document.getElementById('pubTopic').value;
+            const message = document.getElementById('pubMessage').value;
+
+            if (!topic) {
+                log('❌ Введіть топік!', 'error');
+                return;
+            }
+
+            client.publish(topic, message, (err) => {
+                if (err) {
+                    log(`❌ Помилка публікації: ${err.message}`, 'error');
+                } else {
+                    log(`✓ Опубліковано: ${topic} = "${message}"`, 'success');
+                }
+            });
+        }
+
+        function subscribe() {
+            if (!isConnected) {
+                log('❌ Не підключено!', 'error');
+                return;
+            }
+
+            const topic = document.getElementById('subTopic').value;
+
+            if (!topic) {
+                log('❌ Введіть топік!', 'error');
+                return;
+            }
+
+            client.subscribe(topic, (err) => {
+                if (err) {
+                    log(`❌ Помилка підписки: ${err.message}`, 'error');
+                } else {
+                    log(`✓ Підписані на: ${topic}`, 'success');
+                }
+            });
+        }
+
+        function unsubscribe() {
+            if (!isConnected) {
+                log('❌ Не підключено!', 'error');
+                return;
+            }
+
+            const topic = document.getElementById('subTopic').value;
+
+            if (!topic) {
+                log('❌ Введіть топік!', 'error');
+                return;
+            }
+
+            client.unsubscribe(topic, (err) => {
+                if (err) {
+                    log(`❌ Помилка: ${err.message}`, 'error');
+                } else {
+                    log(`✓ Відписані від: ${topic}`, 'success');
+                }
+            });
+        }
+
+        function clearConsole() {
+            document.getElementById('console').innerHTML = '';
+            log('🗑️ Консоль очищена', 'info');
+        }
+
+        // Infoaboutit startup
+        window.addEventListener('load', () => {
+            log('🌐 MQTT Broker Web Console готова!', 'success');
+            log('Введіть URL брокера та нажміть "Підключити"', 'info');
+            updateStatus();
+        });
+
+        // Handle Enter key in inputs
+        document.getElementById('pubTopic').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') publish();
+        });
+        
+        document.getElementById('subTopic').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') subscribe();
+        });
+    </script>
+</body>
+</html>
